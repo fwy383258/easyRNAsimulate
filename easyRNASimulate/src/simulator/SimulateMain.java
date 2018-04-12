@@ -1,10 +1,9 @@
 package simulator;
 
-
 public class SimulateMain {
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+//		// TODO Auto-generated method stub
 		ReadInputs read_args = new ReadInputs(args);
 		int c = read_args.completeArgs();
 		if (c != 0) {
@@ -16,7 +15,6 @@ public class SimulateMain {
 		else {
 			SimulateModes.run(read_args);
 		}
-		
 		System.out.println("END");
 	}
 	

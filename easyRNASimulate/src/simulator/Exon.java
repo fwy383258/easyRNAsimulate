@@ -2,13 +2,24 @@ package simulator;
 
 import java.util.ArrayList;
 
-public class ExonInfo {
+public class Exon {
+	
+	private Transcript script=null;
 	private String base_seq=null;
 	private String chr_symbol=null;
 	private int chr_num=0;
-	private int start_position=0;
-	private int end_position=0;
+	private int start=0;
+	private int end=0;
 	
+	
+	public Transcript getScript() {
+		return script;
+	}
+
+	public void setScript(Transcript script) {
+		this.script = script;
+	}
+
 	String getBase_seq() {
 		return base_seq;
 	}
@@ -35,20 +46,20 @@ public class ExonInfo {
 		this.chr_symbol = this.chrNumToSymbol(chr_num);
 	}
 	
-	int getStart_position() {
-		return start_position;
+	public int getStart() {
+		return start;
 	}
 	
-	void setStart_position(int start_position) {
-		this.start_position = start_position;
+	public void setStart(int start) {
+		this.start = start;
 	}
 	
-	int getEnd_position() {
-		return end_position;
+	public int getEnd() {
+		return end;
 	}
 	
-	void setEnd_position(int end_position) {
-		this.end_position = end_position;
+	public void setEnd(int end) {
+		this.end = end;
 	}
 	
 	public int chrSymbolToNum(String chr_symbol) {
@@ -91,14 +102,14 @@ public class ExonInfo {
 		return out;
 	}
 	
-	int searchMinNoLess(int target, ArrayList<ExonInfo> inc_seq) {
+	int searchMinNoLess(int target, ArrayList<Exon> inc_seq) {
 		int out = -1;
 		int l = 0;
 		int r = inc_seq.size() - 1;
-		if (inc_seq.size() == 0||target <= inc_seq.get(0).getStart_position()) {
+		if (inc_seq.size() == 0||target <= inc_seq.get(0).getStart()) {
 			out = 0;
 		}
-		else if(target <= inc_seq.get(r).getStart_position()){
+		else if(target <= inc_seq.get(r).getStart()){
 			int m = 0;
 			while (l < r) {
 				m = (l + r) >> 1;
@@ -106,14 +117,14 @@ public class ExonInfo {
 					out = r;
 					break;
 				}
-				if (target < inc_seq.get(m).getStart_position()) {
+				if (target < inc_seq.get(m).getStart()) {
 					r = m;
 				}
-				else if (target > inc_seq.get(m).getStart_position()) {
+				else if (target > inc_seq.get(m).getStart()) {
 					l = m;
 				}
 				else {
-					while (target == inc_seq.get(m).getStart_position()) {
+					while (target == inc_seq.get(m).getStart()) {
 						out = m;
 						m--;
 					}
