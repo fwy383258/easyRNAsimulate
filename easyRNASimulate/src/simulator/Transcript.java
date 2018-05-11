@@ -11,13 +11,14 @@ public class Transcript {
 	private int start=0;
 	private int end=0;
 	private int base_sum=0;
+	private char strand=' ';
 	private boolean circ_flag=false;
 	
 	public Transcript(){
 		this.exons = new ArrayList<>();
 	}
 	
-	public Transcript(Gene gene, String id, ArrayList<Exon> exons, int start, int end, int base_sum, boolean circ_flag) {
+	public Transcript(Gene gene, String id, ArrayList<Exon> exons, int start, int end, int base_sum, char strand, boolean circ_flag) {
 		super();
 		this.gene = gene;
 		this.id = id;
@@ -25,6 +26,7 @@ public class Transcript {
 		this.start = start;
 		this.end = end;
 		this.base_sum = base_sum;
+		this.strand = strand;
 		this.circ_flag = circ_flag;
 	}
 
@@ -82,6 +84,14 @@ public class Transcript {
 
 	public void setBase_sum(int base_sum) {
 		this.base_sum = base_sum;
+	}
+
+	public char getStrand() {
+		return strand;
+	}
+
+	public void setStrand(char strand) {
+		this.strand = strand;
 	}
 
 	public boolean isCirc_flag() {

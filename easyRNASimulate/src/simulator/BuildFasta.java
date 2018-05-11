@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 public class BuildFasta {
 	
-	boolean getScriptReads(ArrayList<String> out, ArrayList<String> out_ip,ArrayList<String> report, Transcript script, int count, int count_ip, int length, boolean circ_flag, boolean peak_flag) {
+	boolean getScriptReads(ArrayList<String> out, ArrayList<String> out_ip, ArrayList<String> circ_report, ArrayList<String> peak_report, Transcript script, int count, int count_ip, int length, boolean circ_flag, boolean peak_flag) {
 		StringBuffer id = new StringBuffer();
 		StringBuffer base_seq = new StringBuffer();
 		
@@ -77,34 +77,84 @@ public class BuildFasta {
 		id.append(script.getId());
 		id.append(':');
 		int id_fix = id.length();
+		Bed12 report_line = null;
 		int len = 0;
-		if (report != null && peak_flag) {
-			Exon last_exon = null;
-			StringBuffer report_line = new StringBuffer();
-			report_line.append(script.getId());
-			report_line.append("\t");
-			report_line.append(script.getExon(0).getChr_symbol());
-			report_line.append("\t");
+		if (circ_report != null && circ_flag && script.isCirc_flag()) {
+			report_line = new Bed12();
+			report_line.setName(script.getId());
+			report_line.setChr(script.getExon(0).getChr_symbol());
+			report_line.setStrand(script.getStrand());
+			report_line.setStart(script.getExon(1).getStart());
+			report_line.setEnd(script.getExon(0).getEnd());
 			for (int i = 0; i < script.getExons().size(); i++) {
 				Exon exon = script.getExon(i);
-				if (exon != last_exon && start_index < exon.getEnd() - exon.getStart() + 1 + len) {
-					report_line.append(exon.getStart());
-					report_line.append("\t");
-					report_line.append(exon.getEnd());
-					report_line.append("\t");
+				if (start_index < exon.getEnd() - exon.getStart() + 1 + len) {
+					report_line.setBlock_count(report_line.getBlock_count() + 1);
+					if (start_index >= len) {
+						report_line.getBlock_starts().add(exon.getStart() + start_index - report_line.getStart());
+						report_line.getBlock_sizes().add(exon.getEnd() - exon.getStart() + 1 + len - start_index);
+					}
+					else {
+						report_line.getBlock_starts().add(exon.getStart() - report_line.getStart());
+						report_line.getBlock_sizes().add(exon.getEnd() - exon.getStart() + 1);
+					}
+					if (end_index + length <= exon.getEnd() - exon.getStart() + 1 + len) {
+						report_line.getBlock_sizes().set(report_line.getBlock_count() - 1, end_index + length - len);
+						report_line.setThick_start(report_line.getStart());
+						report_line.setThick_end(report_line.getEnd());
+						break;
+					}
 				}
-				last_exon = exon;
 				len += exon.getEnd() - exon.getStart() + 1;
-				if (end_index + length < len) {
-					break;
+			}
+			circ_report.add(report_line.toString());
+		}
+		if (peak_report != null && peak_flag) {
+			if (report_line == null) {
+				report_line = new Bed12();
+				report_line.setName(script.getId());
+				report_line.setChr(script.getExon(0).getChr_symbol());
+				report_line.setStrand(script.getStrand());
+				if (script.isCirc_flag() && circ_flag) {
+					report_line.setStart(script.getExon(1).getStart());
+					report_line.setEnd(script.getExon(0).getEnd());
+				}
+				for (int i = 0; i < script.getExons().size(); i++) {
+					Exon exon = script.getExon(i);
+					if (start_index < exon.getEnd() - exon.getStart() + 1 + len) {
+						report_line.setBlock_count(report_line.getBlock_count() + 1);
+						if (start_index >= len) {
+							if (report_line.getStart() == 0) {
+								report_line.setStart(exon.getStart() + start_index - len);
+								report_line.getBlock_starts().add(0);
+								report_line.getBlock_sizes().add(exon.getEnd() - report_line.getStart() + 1);
+							}
+							else {
+								report_line.getBlock_starts().add(exon.getStart() + start_index - report_line.getStart());
+								report_line.getBlock_sizes().add(exon.getEnd() - exon.getStart() + 1 + len - start_index);
+							}
+						}
+						else {
+							report_line.getBlock_starts().add(exon.getStart() - report_line.getStart());
+							report_line.getBlock_sizes().add(exon.getEnd() - exon.getStart() + 1);
+						}
+						if (end_index + length <= exon.getEnd() - exon.getStart() + 1 + len) {
+							if (report_line.getEnd() == 0) {
+								report_line.setEnd(exon.getStart() + end_index + length - len);
+							}
+							report_line.getBlock_sizes().set(report_line.getBlock_count() - 1, end_index + length - len);
+							report_line.setThick_start(report_line.getStart());
+							report_line.setThick_end(report_line.getEnd());
+							break;
+						}
+					}
+					len += exon.getEnd() - exon.getStart() + 1;
 				}
 			}
-			report.add(report_line.toString());
+			peak_report.add(report_line.toString());
 		}
 		this.getScriptReads(out, script, count, id, id_fix, base_seq, start_index, end_index, length);
-		if (peak_flag) {
-			this.getScriptReads(out_ip, script, count_ip, id, id_fix, base_seq, start_index, end_index, length);
-		}
+		this.getScriptReads(out_ip, script, count_ip, id, id_fix, base_seq, start_index, end_index, length);
 //		HashMap<Integer, Integer> count_id = new HashMap<Integer, Integer>();
 //		while (count > 0) {
 //			id.setLength(id_fix);

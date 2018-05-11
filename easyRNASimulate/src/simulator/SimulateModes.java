@@ -12,7 +12,6 @@ public class SimulateModes {
 	private int scripts_gene=3;
 	private int bj_count=20000;
 	private int peak_count=2000;
-	private double input_dept=0.01;
 	
 	static void run(ReadInputs args) {
 		ArrayList<String> out_reads = null;
@@ -43,7 +42,7 @@ public class SimulateModes {
 				chr.add(null);
 			}
 			FileRead.loadTranscriptsFile(args, chr);
-			out_reads =  sim.mode4TransExon(args, chr, sim.input_dept);
+			out_reads =  sim.mode4TransExon(args, chr);
 			break;
 		default:
 			break;
@@ -258,7 +257,7 @@ public class SimulateModes {
 					}
 					for (Transcript the_script : temp) {
 						PoissonDistribution p = new PoissonDistribution(5.30);
-						bf.getScriptReads(out, out_ip, null, the_script, p.sample(), 0, args.getRead_length(), false, false);
+						bf.getScriptReads(out, out_ip, null, null, the_script, p.sample(), 0, args.getRead_length(), false, false);
 					}
 					temp.clear();
 				}
@@ -273,7 +272,7 @@ public class SimulateModes {
 					}
 					warn_count--;
 					Transcript script = Method.getRandElement(bj.getBoth_scripts());
-					Transcript the_script = new Transcript(null, script.getId(), new ArrayList<>(), 0, 0, 2 * args.getRead_length() + 2, false);
+					Transcript the_script = new Transcript(null, script.getId(), new ArrayList<>(), 0, 0, 2 * args.getRead_length() + 2, '+', false);
 					Exon exon = new Exon();
 					exon.setBase_seq(bj.getEnd_seq());
 					exon.setChr_symbol(chr.getId());
@@ -288,7 +287,7 @@ public class SimulateModes {
 					the_script.addExon(exon);
 					the_script.setCirc_flag(true);
 					PoissonDistribution p = new PoissonDistribution(3.50);
-					bf.getScriptReads(out, out_ip, null, the_script, p.sample(), 0, args.getRead_length(), false, false);
+					bf.getScriptReads(out, out_ip, null, null, the_script, p.sample(), 0, args.getRead_length(), false, false);
 					bj_count--;
 				}
 			}
@@ -297,7 +296,10 @@ public class SimulateModes {
 		return out;
 	}
 	
-	ArrayList<String> mode4TransExon(ReadInputs args, ArrayList<Chromosome> chr_list, double read_depth){
+	ArrayList<String> mode4TransExon(ReadInputs args, ArrayList<Chromosome> chr_list){
+		double read_depth = args.getDepth();
+		double ip_scale = args.getIp_scale();
+		double enrich = args.getEnrich();
 		ArrayList<String> out = new ArrayList<>();
 		ArrayList<String> out_ip = new ArrayList<>();
 		HashSet<Transcript> peak_scripts = new HashSet<>();
@@ -309,7 +311,7 @@ public class SimulateModes {
 		String ip_file = prefix + "_IP.fa";
 		int suc_peak = 0;
 		ArrayList<String> peak_out = new ArrayList<>();
-		peak_out.add("Chr\tStart\tEnd\tID");
+		peak_out.add(Bed12.getHeader());
 		fw.fileWrite(args.getOut_file(), out);
 		fw.fileWrite(ip_file, out);
 		
@@ -329,9 +331,9 @@ public class SimulateModes {
 						temp.addAll(temp_list);
 					}
 					for (Transcript the_script : temp) {
-						PoissonDistribution p = new PoissonDistribution(read_depth * the_script.getBase_sum());
-						PoissonDistribution p_ip = new PoissonDistribution(0.5 * read_depth * the_script.getBase_sum());
-						bf.getScriptReads(out, out_ip, null,the_script, p.sample(), p_ip.sample(), args.getRead_length(), false, false);
+						PoissonDistribution p = new PoissonDistribution(read_depth);
+						PoissonDistribution p_ip = new PoissonDistribution(ip_scale * read_depth);
+						bf.getScriptReads(out, out_ip, null, null,the_script, p.sample(), p_ip.sample(), args.getRead_length(), false, false);
 					}
 					temp.clear();
 				}
@@ -343,33 +345,33 @@ public class SimulateModes {
 		}
 		int suc_bj = 0;
 		ArrayList<String> circ_out = new ArrayList<>();
+		circ_out.add(Bed12.getHeader());
 		for (Transcript the_script : bj_scripts) {
-			PoissonDistribution p = new PoissonDistribution(1.3 * read_depth * the_script.getBase_sum());;
+			PoissonDistribution p = new PoissonDistribution(1.3 * read_depth);;
 			PoissonDistribution p_ip = null; 
 			int p_count = 0;
 			int ip_count = 0;
 			boolean peak_flag = peak_scripts.contains(the_script);
 			if (peak_flag) {
-				p_ip = new PoissonDistribution(130.0 * read_depth * the_script.getBase_sum());
+				p_ip = new PoissonDistribution(1.3 * enrich * read_depth);
 				while (p_count >= ip_count) {
 					p_count = p.sample();
 					ip_count = p_ip.sample();
 				}
 			}
 			else {
-				p_ip = new PoissonDistribution(0.65 * read_depth * the_script.getBase_sum());
+				p_ip = new PoissonDistribution(1.3 * ip_scale * read_depth);
 				p_count = p.sample();
 				ip_count = p_ip.sample();
 			}
-			if(bf.getScriptReads(out, out_ip, peak_out, the_script, p_count, ip_count, args.getRead_length(), true, peak_flag)) {
+			if(bf.getScriptReads(out, out_ip, circ_out, peak_out, the_script, p_count, ip_count, args.getRead_length(), true, peak_flag)) {
 				if (peak_flag) {
 					suc_peak++;
 					peak_scripts.remove(the_script);
 				}
 				p_count = p.sample();
 				ip_count = p_ip.sample();
-				bf.getScriptReads(out, out_ip, null, the_script, p_count, ip_count, args.getRead_length(), false, false);
-				circ_out.add(the_script.getId() + "\t" + the_script.getExon(0).getChr_symbol() + "\t" + the_script.getExon(1).getStart() + "\t" + the_script.getExon(0).getEnd());
+				bf.getScriptReads(out, out_ip, null, null, the_script, p_count, ip_count, args.getRead_length(), false, false);
 				suc_bj++;
 			}
 			fw.fileAppend(args.getOut_file(), out);
@@ -377,16 +379,19 @@ public class SimulateModes {
 			out.clear();
 			out_ip.clear();
 		}
+		fw.fileWrite(prefix + ".circpeak", peak_out);
+		peak_out.clear();
+		peak_out.add(Bed12.getHeader());
 		for (Transcript the_script : peak_scripts) {
-			PoissonDistribution p = new PoissonDistribution(read_depth * the_script.getBase_sum());
-			PoissonDistribution p_ip = new PoissonDistribution(100.0 * read_depth * the_script.getBase_sum());
+			PoissonDistribution p = new PoissonDistribution(read_depth);
+			PoissonDistribution p_ip = new PoissonDistribution(enrich * read_depth);
 			int p_count = 0;
 			int ip_count = 0;
 			while (p_count >= ip_count) {
 				p_count = p.sample();
 				ip_count = p_ip.sample();
 			}
-			if(bf.getScriptReads(out, out_ip, peak_out, the_script, p_count, ip_count, args.getRead_length(), false, true)) {
+			if(bf.getScriptReads(out, out_ip, null, peak_out, the_script, p_count, ip_count, args.getRead_length(), false, true)) {
 				suc_peak++;
 				fw.fileAppend(args.getOut_file(), out);
 				fw.fileAppend(ip_file, out_ip);
@@ -664,5 +669,4 @@ public class SimulateModes {
 	static int getTotal_modes() {
 		return total_modes;
 	}
-	
 }

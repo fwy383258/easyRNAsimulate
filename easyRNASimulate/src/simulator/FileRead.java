@@ -147,7 +147,7 @@ public class FileRead {
 					String[] infos = cols[8].split("\"");
 					if (infos[2].contains("transcript_id")) {
 						if (the_gene != null && the_gene.getId().equals(infos[1])) {
-							the_script = new Transcript(the_gene, infos[3], new ArrayList<Exon>(), script_start, script_end, 0, false);
+							the_script = new Transcript(the_gene, infos[3], new ArrayList<Exon>(), script_start, script_end, 0, cols[6].charAt(0), false);
 							the_gene.addScript(the_script);
 							if (the_chr.getAll_junctions().size() > 0) {
 								int index = Method.searchMinNoLess(script_start, the_chr.getAll_junctions());

@@ -7,7 +7,7 @@ public class ReadInputs {
 	private String ref_bed_file=null;
 	private String out_file=null;
 	private String out_dir=null;
-	private int sim_mode=0;
+	private int sim_mode=4;
 	private int read_count=0;
 	private int read_length=0;
 	private int min_splice=-1;
@@ -15,13 +15,16 @@ public class ReadInputs {
 	private int peak_num = 0;
 	private double circ_scale=0.1;
 	private double splice_input_scale=0.1;
+	private double depth = 30.0;
+	private double enrich = 100.0;
+	private double ip_scale = 0.5;
 	private boolean exon_bound=true;
 	private boolean read_pair=false;
 	private int FULL_NOTE=4095;
 	
 	public ReadInputs(String ref_genome_file, String ref_exon_gtf, String ref_bed_file, String out_file, String out_dir, int sim_mode,
 			int read_count, int read_length, int min_splice, int max_splice, int peak_num, double circ_scale,
-			double splice_input_scale, boolean exon_bound, boolean read_pair, int fULL_NOTE) {
+			double splice_input_scale, double depth, double enrich, double ip_scale, boolean exon_bound, boolean read_pair, int fULL_NOTE) {
 		super();
 		this.ref_genome_file = ref_genome_file;
 		this.ref_exon_gtf = ref_exon_gtf;
@@ -36,6 +39,9 @@ public class ReadInputs {
 		this.peak_num = peak_num;
 		this.circ_scale = circ_scale;
 		this.splice_input_scale = splice_input_scale;
+		this.depth = depth;
+		this.enrich = enrich;
+		this.ip_scale = ip_scale;
 		this.exon_bound = exon_bound;
 		this.read_pair = read_pair;
 		this.FULL_NOTE = fULL_NOTE;
@@ -92,6 +98,18 @@ public class ReadInputs {
 				else if(temp_args.equals("-s")) {
 					i++;
 					this.splice_input_scale=Double.parseDouble(args[i]);
+				}
+				else if(temp_args.equals("-dep")) {
+					i++;
+					this.depth=Double.parseDouble(args[i]);
+				}
+				else if(temp_args.equals("-enrich")) {
+					i++;
+					this.enrich=Double.parseDouble(args[i]);
+				}
+				else if(temp_args.equals("-is")) {
+					i++;
+					this.ip_scale=Double.parseDouble(args[i]);
 				}
 				else if(temp_args.equals("-b")) {
 					this.exon_bound=false;
@@ -166,7 +184,14 @@ public class ReadInputs {
 				"\t-mins\tneeds int for minimum splice segment length (default is 0.1*read length, should less than read length)",
 				"\t-maxs\tneeds int for maximum splice segment length (default is 0.8*read length, should less than read length)"
 		};
-		String help_line = "\t-bedneeds circRNA bed file\t-peak\tneeds int for total peak count\n\t-b\tdisable splice from the exon boundary\n\t-p\tenable pair end reads\n\t-h\tdisplay the help note";
+		String help_line = "\t-bed\tneeds circRNA bed file\n"
+				+ "\t-peak\tneeds int for total peak count\n"
+				+ "\t-b\tdisable splice from the exon boundary\n"
+				+ "\t-p\tenable pair end reads\n"
+				+ "\t-dep\tdouble for read depth (deafault is 30.0)\n"
+				+ "\t-enrich\tdouble for peak enrichment (default is 100.0)\n"
+				+ "\t-is\tdouble for IP read depth compared with INPUT (default is 0.5)\n"
+				+ "\t-h\tdisplay the help note";
 		if (note == this.FULL_NOTE) {
 			System.out.println("This is help document");
 			for (int i = 0; i < warn_lines.length; i++) {
@@ -233,6 +258,18 @@ public class ReadInputs {
 	
 	double getSplice_input_scale() {
 		return splice_input_scale;
+	}
+	
+	public double getDepth() {
+		return depth;
+	}
+
+	public double getEnrich() {
+		return enrich;
+	}
+
+	public double getIp_scale() {
+		return ip_scale;
 	}
 	
 	boolean isExon_bound() {
