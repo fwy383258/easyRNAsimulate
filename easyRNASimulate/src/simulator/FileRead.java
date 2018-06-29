@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map.Entry;
+
 
 public class FileRead {
 	
@@ -75,28 +75,28 @@ public class FileRead {
 			e.printStackTrace();
 		}
 		
-		BufferedReader genome_fasta = null;
-		read_file = new File(ref_genome_file);
-		try {
-			genome_fasta = new BufferedReader(new FileReader(read_file));
-			int chr_array = -1;
-			while((temp_line = genome_fasta.readLine()) != null) {
-				if (temp_line.charAt(0) == '>') {
-					chr_array = exon.chrSymbolToNum(temp_line.substring(1)) - 1;
-				}
-				else if (chr_array >= 0) {
-					ArrayList<Exon> exon_list = out.get(chr_array);
-					for (int i = 0; i < exon_list.size(); i++) {
-						exon = exon_list.get(i);
-						exon.setBase_seq(temp_line.substring(exon.getStart() - 1, exon.getEnd()));
-					}
-				}
-			}
-			genome_fasta.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//		BufferedReader genome_fasta = null;
+//		read_file = new File(ref_genome_file);
+//		try {
+//			genome_fasta = new BufferedReader(new FileReader(read_file));
+//			int chr_array = -1;
+//			while((temp_line = genome_fasta.readLine()) != null) {
+//				if (temp_line.charAt(0) == '>') {
+//					chr_array = exon.chrSymbolToNum(temp_line.substring(1)) - 1;
+//				}
+//				else if (chr_array >= 0) {
+//					ArrayList<Exon> exon_list = out.get(chr_array);
+//					for (int i = 0; i < exon_list.size(); i++) {
+//						exon = exon_list.get(i);
+//						exon.setBase_seq(temp_line.substring(exon.getStart() - 1, exon.getEnd()));
+//					}
+//				}
+//			}
+//			genome_fasta.close();
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 		
 		for (int i = 0; i < out.size();) {
 			if (out.get(i).size() > 0) {
@@ -148,6 +148,7 @@ public class FileRead {
 					if (infos[2].contains("transcript_id")) {
 						if (the_gene != null && the_gene.getId().equals(infos[1])) {
 							the_script = new Transcript(the_gene, infos[3], new ArrayList<Exon>(), script_start, script_end, 0, cols[6].charAt(0), false);
+							the_script.setChr(Chromosome.chrSymbolToNum(cols[0]) - 1); 
 							the_gene.addScript(the_script);
 							if (the_chr.getAll_junctions().size() > 0) {
 								int index = Method.searchMinNoLess(script_start, the_chr.getAll_junctions());
@@ -200,42 +201,42 @@ public class FileRead {
 			the_script.sortExons(true);
 			exon_gtf.close();
 			
-			BufferedReader genome_fasta = null;
-			read_file = new File(args.getRef_genome_file());
-			try {
-				genome_fasta = new BufferedReader(new FileReader(read_file));
-				int chr_array = -1;
-				while((temp_line = genome_fasta.readLine()) != null) {
-					if (temp_line.charAt(0) == '>') {
-						chr_array = Chromosome.chrSymbolToNum(temp_line.substring(1)) - 1;
-					}
-					else if (chr_array >= 0) {
-						Chromosome chr = out.get(chr_array);
-						for (int i = 0; i < chr.getGenes().size(); i++) {
-							for (int j = 0; j < chr.getGene(i).getScripts().size(); j++) {
-								for (int k = 0; k < chr.getGene(i).getScript(j).getExons().size(); k++) {
-									Exon exon = chr.getGene(i).getScript(j).getExon(k);
-									exon.setBase_seq(temp_line.substring(exon.getStart() - 1, exon.getEnd()));
-								}
-							}
-						}
-						for (Entry<Integer, ArrayList<BackJunction>> bj_list : chr.getJunction_map().entrySet()) {
-							for (int i=0; i < bj_list.getValue().size(); i++) {
-								BackJunction bj = bj_list.getValue().get(i);
-								int length = args.getRead_length();
+//			BufferedReader genome_fasta = null;
+//			read_file = new File(args.getRef_genome_file());
+//			try {
+//				genome_fasta = new BufferedReader(new FileReader(read_file));
+//				int chr_array = -1;
+//				while((temp_line = genome_fasta.readLine()) != null) {
+//					if (temp_line.charAt(0) == '>') {
+//						chr_array = Chromosome.chrSymbolToNum(temp_line.substring(1)) - 1;
+//					}
+//					else if (chr_array >= 0) {
+//						Chromosome chr = out.get(chr_array);
+//						for (int i = 0; i < chr.getGenes().size(); i++) {
+//							for (int j = 0; j < chr.getGene(i).getScripts().size(); j++) {
+//								for (int k = 0; k < chr.getGene(i).getScript(j).getExons().size(); k++) {
+//									Exon exon = chr.getGene(i).getScript(j).getExon(k);
+//									exon.setBase_seq(temp_line.substring(exon.getStart() - 1, exon.getEnd()));
+//								}
+//							}
+//						}
+//						for (Entry<Integer, ArrayList<BackJunction>> bj_list : chr.getJunction_map().entrySet()) {
+//							for (int i=0; i < bj_list.getValue().size(); i++) {
+//								BackJunction bj = bj_list.getValue().get(i);
+//								int length = args.getRead_length();
 //								length += length/2;
-								bj.setStart_seq(temp_line.substring(bj.getStart() - 1, bj.getStart() + length));
-								bj.setEnd_seq(temp_line.substring(bj.getEnd() - length, bj.getEnd() + 1));
-							}
-						}
-					}
-				}
-				genome_fasta.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			genome_fasta.close();
+//								bj.setStart_seq(temp_line.substring(bj.getStart() - 1, bj.getStart() + length));
+//								bj.setEnd_seq(temp_line.substring(bj.getEnd() - length, bj.getEnd() + 1));
+//							}
+//						}
+//					}
+//				}
+//				genome_fasta.close();
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//			genome_fasta.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

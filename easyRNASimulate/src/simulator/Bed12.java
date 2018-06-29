@@ -117,7 +117,7 @@ public class Bed12 {
 		this.ids = ids;
 	}
 	public static String getHeader() {
-		return "chr\tchromStart\tchromEnd\tname\tscore\tstrand\tthickStart\tthickEnd\titemRgb\tblockCount\tblockSizes\tblockStarts";
+		return "#chr\tchromStart\tchromEnd\tname\tscore\tstrand\tthickStart\tthickEnd\titemRgb\tblockCount\tblockSizes\tblockStarts";
 	}
     @Override
 	public String toString() {

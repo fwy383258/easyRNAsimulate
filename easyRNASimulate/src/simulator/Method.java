@@ -5,6 +5,8 @@ import java.util.HashSet;
 
 public class Method {
 	
+	static char[] bases = {'A', 'G', 'T', 'C'};
+	
 	static <T> void getNoneRepeat(ArrayList<T> list, int count, HashSet<T> out) {
 		if (list.size() > count) {
 			while(out.size() < count) {
@@ -92,4 +94,30 @@ public class Method {
 		return out;
 	}
 	
+	static void randomErrorSeq(StringBuffer seq) {
+		for (int i = 0 ; i < seq.length(); i++) {
+			double rand = Math.random();
+			if (rand < 0.01) {
+				if (rand < 0.0002) {
+					if (rand < 0.0001) {
+						seq.deleteCharAt(i);
+					}
+					else {
+						seq.insert(i, randBase('N'));
+					}
+				}
+				else {
+					seq.setCharAt(i, randBase(seq.charAt(i)));
+				}
+			}
+		}
+	}
+	
+	static char randBase(char old) {
+		char out = old;
+		while(out == old) {
+			out = bases[randIntReach(0, bases.length - 1)];
+		}
+		return out;
+	}
 }

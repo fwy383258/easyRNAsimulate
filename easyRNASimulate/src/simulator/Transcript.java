@@ -8,6 +8,7 @@ public class Transcript {
 	private Gene gene=null;
 	private String id=null;
 	private ArrayList<Exon> exons=null;
+	private int chr=-1;
 	private int start=0;
 	private int end=0;
 	private int base_sum=0;
@@ -62,6 +63,14 @@ public class Transcript {
 		this.exons = exons;
 	} 
 	
+	public int getChr() {
+		return chr;
+	}
+
+	public void setChr(int chr) {
+		this.chr = chr;
+	}
+
 	public int getStart() {
 		return start;
 	}

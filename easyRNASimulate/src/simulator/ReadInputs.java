@@ -7,45 +7,21 @@ public class ReadInputs {
 	private String ref_bed_file=null;
 	private String out_file=null;
 	private String out_dir=null;
-	private int sim_mode=4;
+	private int sim_mode=5;
 	private int read_count=0;
 	private int read_length=0;
-	private int min_splice=-1;
-	private int max_splice=-1;
-	private int peak_num = 0;
-	private double circ_scale=0.1;
-	private double splice_input_scale=0.1;
+//	private int min_splice=-1;
+//	private int max_splice=-1;
+	private int peak_num = 2000;
+	private int circ_num = 20000;
+//	private double circ_scale=0.1;
+//	private double splice_input_scale=0.1;
 	private double depth = 30.0;
 	private double enrich = 100.0;
 	private double ip_scale = 0.5;
 	private boolean exon_bound=true;
 	private boolean read_pair=false;
-	private int FULL_NOTE=4095;
-	
-	public ReadInputs(String ref_genome_file, String ref_exon_gtf, String ref_bed_file, String out_file, String out_dir, int sim_mode,
-			int read_count, int read_length, int min_splice, int max_splice, int peak_num, double circ_scale,
-			double splice_input_scale, double depth, double enrich, double ip_scale, boolean exon_bound, boolean read_pair, int fULL_NOTE) {
-		super();
-		this.ref_genome_file = ref_genome_file;
-		this.ref_exon_gtf = ref_exon_gtf;
-		this.ref_bed_file = ref_bed_file;
-		this.out_file = out_file;
-		this.out_dir = out_dir;
-		this.sim_mode = sim_mode;
-		this.read_count = read_count;
-		this.read_length = read_length;
-		this.min_splice = min_splice;
-		this.max_splice = max_splice;
-		this.peak_num = peak_num;
-		this.circ_scale = circ_scale;
-		this.splice_input_scale = splice_input_scale;
-		this.depth = depth;
-		this.enrich = enrich;
-		this.ip_scale = ip_scale;
-		this.exon_bound = exon_bound;
-		this.read_pair = read_pair;
-		this.FULL_NOTE = fULL_NOTE;
-	}
+	private int FULL_NOTE=65535;
 
 	public ReadInputs(String[] args) {
 		for (int i = 0; i < args.length; i++) {
@@ -79,26 +55,26 @@ public class ReadInputs {
 					i++;
 					this.read_length=Integer.parseInt(args[i]);
 				}
-				else if(temp_args.equals("-mins")) {
-					i++;
-					this.min_splice=Integer.parseInt(args[i]);
-				}
-				else if(temp_args.equals("-maxs")) {
-					i++;
-					this.max_splice=Integer.parseInt(args[i]);
-				}
+//				else if(temp_args.equals("-mins")) {
+//					i++;
+//					this.min_splice=Integer.parseInt(args[i]);
+//				}
+//				else if(temp_args.equals("-maxs")) {
+//					i++;
+//					this.max_splice=Integer.parseInt(args[i]);
+//				}
 				else if(temp_args.equals("-peak")) {
 					i++;
 					this.peak_num=Integer.parseInt(args[i]);
 				}
 				else if(temp_args.equals("-circ")) {
 					i++;
-					this.circ_scale=Double.parseDouble(args[i]);
+					this.circ_num=Integer.parseInt(args[i]);
 				}
-				else if(temp_args.equals("-s")) {
-					i++;
-					this.splice_input_scale=Double.parseDouble(args[i]);
-				}
+//				else if(temp_args.equals("-s")) {
+//					i++;
+//					this.splice_input_scale=Double.parseDouble(args[i]);
+//				}
 				else if(temp_args.equals("-dep")) {
 					i++;
 					this.depth=Double.parseDouble(args[i]);
@@ -111,7 +87,7 @@ public class ReadInputs {
 					i++;
 					this.ip_scale=Double.parseDouble(args[i]);
 				}
-				else if(temp_args.equals("-b")) {
+				else if(temp_args.equals("-no_b")) {
 					this.exon_bound=false;
 				}
 				else if(temp_args.equals("-p")) {
@@ -128,12 +104,12 @@ public class ReadInputs {
 				System.out.println("Unknown parameter: " + args[i]);
 			}
 		}
-		if (this.min_splice < 0) {
-			this.min_splice = (int) (this.read_length * 0.1);
-		}
-		if (this.max_splice < 0) {
-			this.max_splice = (int) (this.read_length * 0.8);
-		}
+//		if (this.min_splice < 0) {
+//			this.min_splice = (int) (this.read_length * 0.1);
+//		}
+//		if (this.max_splice < 0) {
+//			this.max_splice = (int) (this.read_length * 0.8);
+//		}
 	}
 	
 	int completeArgs() {
@@ -156,18 +132,18 @@ public class ReadInputs {
 		if (this.read_length <= 0) {
 			out |= 32;
 		}
-		if (this.circ_scale < 0.0 || this.circ_scale > 1.0) {
-			out |= 64;
-		}
-		if (this.splice_input_scale < 0.0 || this.splice_input_scale > 1.0) {
-			out |= 128;
-		}
-		if (this.min_splice > this.read_length) {
-			out |= 256;
-		}
-		if (this.max_splice > this.read_length) {
-			out |= 512;
-		}
+//		if (this.circ_scale < 0.0 || this.circ_scale > 1.0) {
+//			out |= 64;
+//		}
+//		if (this.splice_input_scale < 0.0 || this.splice_input_scale > 1.0) {
+//			out |= 128;
+//		}
+//		if (this.min_splice > this.read_length) {
+//			out |= 256;
+//		}
+//		if (this.max_splice > this.read_length) {
+//			out |= 512;
+//		}
 		return out;
 	}
 	
@@ -179,13 +155,15 @@ public class ReadInputs {
 				"\t-m\trequires integer for choosing mode",
 				"\t-c\trequires integer for amount of reads",
 				"\t-l\trequires integer for read length",
-				"\t-circ\tneeds double for scale of circ reads in spliced reads from 0.0 to 1.0",
-				"\t-s\tneeds double for scale of spliced reads from 0.0 to 1.0",
-				"\t-mins\tneeds int for minimum splice segment length (default is 0.1*read length, should less than read length)",
-				"\t-maxs\tneeds int for maximum splice segment length (default is 0.8*read length, should less than read length)"
+//				"\t-s\tneeds double for scale of spliced reads from 0.0 to 1.0",
+//				"\t-mins\tneeds int for minimum splice segment length (default is 0.1*read length, should less than read length)",
+//				"\t-maxs\tneeds int for maximum splice segment length (default is 0.8*read length, should less than read length)",
+				
 		};
+
 		String help_line = "\t-bed\tneeds circRNA bed file\n"
 				+ "\t-peak\tneeds int for total peak count\n"
+				+ "\t-circ\tneeds double for scale of circ reads in spliced reads from 0.0 to 1.0\n"
 				+ "\t-b\tdisable splice from the exon boundary\n"
 				+ "\t-p\tenable pair end reads\n"
 				+ "\t-dep\tdouble for read depth (deafault is 30.0)\n"
@@ -240,25 +218,29 @@ public class ReadInputs {
 		return read_length;
 	}
 	
-	int getMin_splice() {
-		return min_splice;
-	}
-
-	int getMax_splice() {
-		return max_splice;
-	}
+//	int getMin_splice() {
+//		return min_splice;
+//	}
+//
+//	int getMax_splice() {
+//		return max_splice;
+//	}
 
 	int getPeak_num() {
 		return peak_num;
 	}
 
-	double getCirc_scale() {
-		return circ_scale;
+	public int getCirc_num() {
+		return circ_num;
 	}
-	
-	double getSplice_input_scale() {
-		return splice_input_scale;
-	}
+
+//	double getCirc_scale() {
+//		return circ_scale;
+//	}
+//	
+//	double getSplice_input_scale() {
+//		return splice_input_scale;
+//	}
 	
 	public double getDepth() {
 		return depth;

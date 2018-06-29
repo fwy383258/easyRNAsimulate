@@ -3,15 +3,16 @@ package simulator;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-import org.apache.commons.math3.distribution.BinomialDistribution;
+//import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.distribution.PoissonDistribution;
 
 public class SimulateModes {
 
-	private static int total_modes=4;
+	private static int total_modes=5;
 	private int scripts_gene=3;
 	private int bj_count=20000;
 	private int peak_count=2000;
+	private int fragment_length=200;
 	
 	static void run(ReadInputs args) {
 		ArrayList<String> out_reads = null;
@@ -19,17 +20,17 @@ public class SimulateModes {
 		ArrayList<Chromosome> chr = null;
 		int mode = args.getSim_mode();
 		switch (mode) {
-		case 1:
-		case 2:
-			ArrayList<ArrayList<Exon>> exons = FileRead.loadFiles(args.getRef_exon_gtf(), args.getRef_genome_file());
-			if (mode == 1) {
-				out_reads = sim.mode1Uniform(args, exons);
-			}
-			else {
-				out_reads = sim.mode2Binomial(args, exons);
-			}
-			sim.writeFasta(args.getOut_file(), out_reads);
-			break;
+//		case 1:
+//		case 2:
+//			ArrayList<ArrayList<Exon>> exons = FileRead.loadFiles(args.getRef_exon_gtf(), args.getRef_genome_file());
+//			if (mode == 1) {
+//				out_reads = sim.mode1Uniform(args, exons);
+//			}
+//			else {
+//				out_reads = sim.mode2Binomial(args, exons);
+//			}
+//			sim.writeFasta(args.getOut_file(), out_reads);
+//			break;
 		case 3:
 			chr = FileRead.loadJunctionFile(args.getRef_bed_file());
 			FileRead.loadTranscriptsFile(args, chr);
@@ -44,198 +45,206 @@ public class SimulateModes {
 			FileRead.loadTranscriptsFile(args, chr);
 			out_reads =  sim.mode4TransExon(args, chr);
 			break;
+		case 5:
+			chr = new ArrayList<>();
+			for (int i = 0; i < 25; i++) {
+				chr.add(null);
+			}
+			FileRead.loadTranscriptsFile(args, chr);
+			sim.mode5Possion(args, chr);
+			break;
 		default:
 			break;
 		}
 	}
 	
-	ArrayList<String> mode1Uniform(ReadInputs args, ArrayList<ArrayList<Exon>> exons){
-		ArrayList<String> out = new ArrayList<String>();
-		BuildFasta bf = new BuildFasta();
-		
-		
-		int read_count = args.getRead_count();
-		int map_rand = (int) (read_count * (1.0 - args.getSplice_input_scale()));
-		int circ_rand = read_count - map_rand;
-		int splice_rand = (int) (circ_rand * (1.0 - args.getCirc_scale()));
-		circ_rand -= splice_rand;
-		int[] chr_rand = Method.divideInto(map_rand, exons.size());
-		int[] chr_srand = Method.divideInto(splice_rand, exons.size());
-		int[] chr_crand = Method.divideInto(splice_rand, exons.size());
-		StringBuffer base_seq = new StringBuffer();
-		StringBuffer id = new StringBuffer();
-		for (int i = 0; i < exons.size(); i++) {
-			ArrayList<Exon> exon_list = exons.get(i);
-			ArrayList<Integer> exon_seq = new ArrayList<Integer>();
-			int random_max = this.getExonRandomMax(exons.get(i), args.getRead_length() - 1, exon_seq);
-			System.out.println("Full map " + exon_list.get(0).getChr_symbol() + " : " + exon_seq.size());
-			while (chr_rand[i] > 0) {
-				int offset = Method.randIntReach(1, random_max);
-				int exon_index = this.searchMinNoLess(offset, exon_seq);
-				offset += exon_list.get(exon_index).getBase_seq().length() - exon_seq.get(exon_index) - args.getRead_length();
-				base_seq.setLength(0);
-				id.setLength(0);
-				id.append('>');
-				int	left_length = bf.buildFirstSplice(exon_list.get(exon_index), offset, args.getRead_length(), base_seq, id);
-				if (left_length > 0) {
-					System.out.println("Error: Full map left");
-				}
-				out.add(id.toString());
-				out.add(base_seq.toString());
-				chr_rand[i] --;
-			}
-			exon_seq = new ArrayList<Integer>();
-			random_max = this.getExonSpliceRandomMax(exons.get(i), args.getMax_splice(), args.getMin_splice(), exon_seq);
-			System.out.println("Splice " + exon_list.get(0).getChr_symbol() + " : " + exon_seq.size());
-			while (chr_srand[i] > 0) {
-				int offset = Method.randIntReach(1, random_max);
-				int exon_1 = this.searchMinNoLess(offset, exon_seq);
-				offset += exon_list.get(exon_1).getBase_seq().length() - exon_seq.get(exon_1) - args.getMin_splice();
-				base_seq.setLength(0);
-				id.setLength(0);
-				id.append('>');
-				int left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
-				bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_1, exon_list);
-				out.add(id.toString());
-				out.add(base_seq.toString());
-				chr_srand[i] --;
-			}
-			while (chr_crand[i] > 0) {
-				int offset = Method.randIntReach(1, random_max);
-				int exon_1 = this.searchMinNoLess(offset, exon_seq);
-				offset += exon_list.get(exon_1).getBase_seq().length() - exon_seq.get(exon_1) - args.getMin_splice();
-				base_seq.setLength(0);
-				id.setLength(0);
-				id.append(">circ:");
-				int left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
-				int exon_2 = Method.randIntReach(0, exon_1);
-				left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
-				bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
-				out.add(id.toString());
-				out.add(base_seq.toString());
-				chr_crand[i] --;
-			}
-		}
-		return out;
-	}
+//	ArrayList<String> mode1Uniform(ReadInputs args, ArrayList<ArrayList<Exon>> exons){
+//		ArrayList<String> out = new ArrayList<String>();
+//		BuildFasta bf = new BuildFasta();
+//		
+//		
+//		int read_count = args.getRead_count();
+//		int map_rand = (int) (read_count * (1.0 - args.getSplice_input_scale()));
+//		int circ_rand = read_count - map_rand;
+//		int splice_rand = (int) (circ_rand * (1.0 - args.getCirc_scale()));
+//		circ_rand -= splice_rand;
+//		int[] chr_rand = Method.divideInto(map_rand, exons.size());
+//		int[] chr_srand = Method.divideInto(splice_rand, exons.size());
+//		int[] chr_crand = Method.divideInto(splice_rand, exons.size());
+//		StringBuffer base_seq = new StringBuffer();
+//		StringBuffer id = new StringBuffer();
+//		for (int i = 0; i < exons.size(); i++) {
+//			ArrayList<Exon> exon_list = exons.get(i);
+//			ArrayList<Integer> exon_seq = new ArrayList<Integer>();
+//			int random_max = this.getExonRandomMax(exons.get(i), args.getRead_length() - 1, exon_seq);
+//			System.out.println("Full map " + exon_list.get(0).getChr_symbol() + " : " + exon_seq.size());
+//			while (chr_rand[i] > 0) {
+//				int offset = Method.randIntReach(1, random_max);
+//				int exon_index = this.searchMinNoLess(offset, exon_seq);
+//				offset += exon_list.get(exon_index).getBase_seq().length() - exon_seq.get(exon_index) - args.getRead_length();
+//				base_seq.setLength(0);
+//				id.setLength(0);
+//				id.append('>');
+//				int	left_length = bf.buildFirstSplice(exon_list.get(exon_index), offset, args.getRead_length(), base_seq, id);
+//				if (left_length > 0) {
+//					System.out.println("Error: Full map left");
+//				}
+//				out.add(id.toString());
+//				out.add(base_seq.toString());
+//				chr_rand[i] --;
+//			}
+//			exon_seq = new ArrayList<Integer>();
+//			random_max = this.getExonSpliceRandomMax(exons.get(i), args.getMax_splice(), args.getMin_splice(), exon_seq);
+//			System.out.println("Splice " + exon_list.get(0).getChr_symbol() + " : " + exon_seq.size());
+//			while (chr_srand[i] > 0) {
+//				int offset = Method.randIntReach(1, random_max);
+//				int exon_1 = this.searchMinNoLess(offset, exon_seq);
+//				offset += exon_list.get(exon_1).getBase_seq().length() - exon_seq.get(exon_1) - args.getMin_splice();
+//				base_seq.setLength(0);
+//				id.setLength(0);
+//				id.append('>');
+//				int left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
+//				bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_1, exon_list);
+//				out.add(id.toString());
+//				out.add(base_seq.toString());
+//				chr_srand[i] --;
+//			}
+//			while (chr_crand[i] > 0) {
+//				int offset = Method.randIntReach(1, random_max);
+//				int exon_1 = this.searchMinNoLess(offset, exon_seq);
+//				offset += exon_list.get(exon_1).getBase_seq().length() - exon_seq.get(exon_1) - args.getMin_splice();
+//				base_seq.setLength(0);
+//				id.setLength(0);
+//				id.append(">circ:");
+//				int left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
+//				int exon_2 = Method.randIntReach(0, exon_1);
+//				left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
+//				bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
+//				out.add(id.toString());
+//				out.add(base_seq.toString());
+//				chr_crand[i] --;
+//			}
+//		}
+//		return out;
+//	}
 	
-	ArrayList<String> mode2Binomial(ReadInputs args, ArrayList<ArrayList<Exon>> exons){
-		ArrayList<String> out = null;
-		BuildFasta bf = new BuildFasta();
-		
-		int peak_reads = (int) (args.getRead_count() * (Math.random() * 0.2 + 0.1)); 
-		args.setRead_count(args.getRead_count() - peak_reads);
-		out = this.mode1Uniform(args, exons);
-		int peak_num = args.getPeak_num();
-		int peak_ava = peak_reads / peak_num / 2;
-		peak_reads += - peak_num * peak_ava;
-		int[] peak_count = Method.divideInto(peak_reads, peak_num);
-		int[] peak_rand = Method.divideInto(peak_num, exons.size());
-		
-		StringBuffer base_seq = new StringBuffer();
-		StringBuffer id = new StringBuffer();
-		peak_num=0;
-		for (int chr_num = 0; chr_num < exons.size(); chr_num ++) {
-			ArrayList<Exon> exon_list = exons.get(chr_num);
-			ArrayList<Integer> exon_seq = new ArrayList<>();
-			int full_max = this.getExonRandomMax(exon_list, args.getRead_length() - 1, exon_seq);
-			while (peak_rand[chr_num] > 0) {
-				peak_count[peak_num] += peak_ava;
-				int rand_mode = Method.randIntReach(1, 3);
-				if (rand_mode == 1) {
-					int exon_index = this.searchMinNoLess(Method.randIntReach(1, full_max), exon_seq);
-					int length = exon_list.get(exon_index).getBase_seq().length() - args.getRead_length();
-					int left_point = 0;
-					BinomialDistribution bd = null;
-					if (length > args.getRead_length()) {
-						left_point = Method.randIntReach(0, length - args.getRead_length() + 1);
-						bd = new BinomialDistribution(args.getRead_length(), 0.5);
-					}
-					else {
-						bd = new BinomialDistribution(length, 0.5);
-					}
-					while(peak_count[peak_num] > 0) {
-						int offset = left_point + bd.sample();
-						base_seq.setLength(0);
-						id.setLength(0);
-						id.append(">peak");
-						id.append(peak_count[peak_num]);
-						id.append(':');
-						int	left_length = bf.buildFirstSplice(exon_list.get(exon_index), offset, args.getRead_length(), base_seq, id);
-						if (left_length > 0) {
-							System.out.println("Error: Full map left peak");
-						}
-						out.add(id.toString());
-						out.add(base_seq.toString());
-						peak_count[peak_num]--;
-					}
-				}
-				else if(rand_mode == 2) {
-					int exon_1 = this.searchMinNoLess(Method.randIntReach(1, full_max), exon_seq);
-					int left_point = exon_list.get(exon_1).getBase_seq().length() - args.getRead_length() + 1;
-					BinomialDistribution bd = new BinomialDistribution(args.getRead_length(), 0.5);
-					int exon_2 = exon_seq.size() - 1;
-					if (exon_1 < exon_2) {
-						exon_2 = Method.randIntReach(exon_1 + 1, exon_2);
-						while(peak_count[peak_num] > 0) {
-							int offset = left_point + bd.sample();
-							base_seq.setLength(0);
-							id.setLength(0);
-							id.append(">peak");
-							id.append(peak_count[peak_num]);
-							id.append(':');
-							int	left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
-							left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
-							bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
-							out.add(id.toString());
-							out.add(base_seq.toString());
-							peak_count[peak_num]--;
-						}
-					}
-					else {
-						while(peak_count[peak_num] > 0) {
-							int offset = left_point + bd.sample();
-							base_seq.setLength(0);
-							id.setLength(0);
-							id.append(">peak");
-							id.append(peak_count[peak_num]);
-							id.append(":circ:");
-							int	left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
-							left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
-							bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
-							out.add(id.toString());
-							out.add(base_seq.toString());
-							peak_count[peak_num]--;
-						}
-					}
-				}
-				else {
-					int exon_1 = this.searchMinNoLess(Method.randIntReach(1, full_max), exon_seq);
-					int left_point = exon_list.get(exon_1).getBase_seq().length() - args.getRead_length() + 1;
-					BinomialDistribution bd = new BinomialDistribution(args.getRead_length(), 0.5);
-					int exon_2 =Method.randIntReach(0, exon_1);
-					while(peak_count[peak_num] > 0) {
-						int offset = left_point + bd.sample();
-						base_seq.setLength(0);
-						id.setLength(0);
-						id.append(">peak");
-						id.append(peak_count[peak_num]);
-						id.append(":circ:");
-						int	left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
-						left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
-						bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
-						out.add(id.toString());
-						out.add(base_seq.toString());
-						peak_count[peak_num]--;
-					}
-				}
-				peak_rand[chr_num]--;
-				peak_num++;
-			}
-		}
-		
-		return out;
-	}
+//	ArrayList<String> mode2Binomial(ReadInputs args, ArrayList<ArrayList<Exon>> exons){
+//		ArrayList<String> out = null;
+//		BuildFasta bf = new BuildFasta();
+//		
+//		int peak_reads = (int) (args.getRead_count() * (Math.random() * 0.2 + 0.1)); 
+//		args.setRead_count(args.getRead_count() - peak_reads);
+//		out = this.mode1Uniform(args, exons);
+//		int peak_num = args.getPeak_num();
+//		int peak_ava = peak_reads / peak_num / 2;
+//		peak_reads += - peak_num * peak_ava;
+//		int[] peak_count = Method.divideInto(peak_reads, peak_num);
+//		int[] peak_rand = Method.divideInto(peak_num, exons.size());
+//		
+//		StringBuffer base_seq = new StringBuffer();
+//		StringBuffer id = new StringBuffer();
+//		peak_num=0;
+//		for (int chr_num = 0; chr_num < exons.size(); chr_num ++) {
+//			ArrayList<Exon> exon_list = exons.get(chr_num);
+//			ArrayList<Integer> exon_seq = new ArrayList<>();
+//			int full_max = this.getExonRandomMax(exon_list, args.getRead_length() - 1, exon_seq);
+//			while (peak_rand[chr_num] > 0) {
+//				peak_count[peak_num] += peak_ava;
+//				int rand_mode = Method.randIntReach(1, 3);
+//				if (rand_mode == 1) {
+//					int exon_index = this.searchMinNoLess(Method.randIntReach(1, full_max), exon_seq);
+//					int length = exon_list.get(exon_index).getBase_seq().length() - args.getRead_length();
+//					int left_point = 0;
+//					BinomialDistribution bd = null;
+//					if (length > args.getRead_length()) {
+//						left_point = Method.randIntReach(0, length - args.getRead_length() + 1);
+//						bd = new BinomialDistribution(args.getRead_length(), 0.5);
+//					}
+//					else {
+//						bd = new BinomialDistribution(length, 0.5);
+//					}
+//					while(peak_count[peak_num] > 0) {
+//						int offset = left_point + bd.sample();
+//						base_seq.setLength(0);
+//						id.setLength(0);
+//						id.append(">peak");
+//						id.append(peak_count[peak_num]);
+//						id.append(':');
+//						int	left_length = bf.buildFirstSplice(exon_list.get(exon_index), offset, args.getRead_length(), base_seq, id);
+//						if (left_length > 0) {
+//							System.out.println("Error: Full map left peak");
+//						}
+//						out.add(id.toString());
+//						out.add(base_seq.toString());
+//						peak_count[peak_num]--;
+//					}
+//				}
+//				else if(rand_mode == 2) {
+//					int exon_1 = this.searchMinNoLess(Method.randIntReach(1, full_max), exon_seq);
+//					int left_point = exon_list.get(exon_1).getBase_seq().length() - args.getRead_length() + 1;
+//					BinomialDistribution bd = new BinomialDistribution(args.getRead_length(), 0.5);
+//					int exon_2 = exon_seq.size() - 1;
+//					if (exon_1 < exon_2) {
+//						exon_2 = Method.randIntReach(exon_1 + 1, exon_2);
+//						while(peak_count[peak_num] > 0) {
+//							int offset = left_point + bd.sample();
+//							base_seq.setLength(0);
+//							id.setLength(0);
+//							id.append(">peak");
+//							id.append(peak_count[peak_num]);
+//							id.append(':');
+//							int	left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
+//							left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
+//							bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
+//							out.add(id.toString());
+//							out.add(base_seq.toString());
+//							peak_count[peak_num]--;
+//						}
+//					}
+//					else {
+//						while(peak_count[peak_num] > 0) {
+//							int offset = left_point + bd.sample();
+//							base_seq.setLength(0);
+//							id.setLength(0);
+//							id.append(">peak");
+//							id.append(peak_count[peak_num]);
+//							id.append(":circ:");
+//							int	left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
+//							left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
+//							bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
+//							out.add(id.toString());
+//							out.add(base_seq.toString());
+//							peak_count[peak_num]--;
+//						}
+//					}
+//				}
+//				else {
+//					int exon_1 = this.searchMinNoLess(Method.randIntReach(1, full_max), exon_seq);
+//					int left_point = exon_list.get(exon_1).getBase_seq().length() - args.getRead_length() + 1;
+//					BinomialDistribution bd = new BinomialDistribution(args.getRead_length(), 0.5);
+//					int exon_2 =Method.randIntReach(0, exon_1);
+//					while(peak_count[peak_num] > 0) {
+//						int offset = left_point + bd.sample();
+//						base_seq.setLength(0);
+//						id.setLength(0);
+//						id.append(">peak");
+//						id.append(peak_count[peak_num]);
+//						id.append(":circ:");
+//						int	left_length = bf.buildFirstSplice(exon_list.get(exon_1), offset, args.getRead_length(), base_seq, id);
+//						left_length = bf.addBoundSplice(base_seq, id, left_length, exon_list.get(exon_2));
+//						bf.addAllBoundForwardSplice(base_seq, id, left_length, exon_2, exon_list);
+//						out.add(id.toString());
+//						out.add(base_seq.toString());
+//						peak_count[peak_num]--;
+//					}
+//				}
+//				peak_rand[chr_num]--;
+//				peak_num++;
+//			}
+//		}
+//		
+//		return out;
+//	}
 	
 	ArrayList<String> mode3TransBin(ReadInputs args, ArrayList<Chromosome> chr_list){
 		ArrayList<String> out = new ArrayList<>(64);
@@ -315,6 +324,7 @@ public class SimulateModes {
 		fw.fileWrite(args.getOut_file(), out);
 		fw.fileWrite(ip_file, out);
 		
+		ArrayList<Transcript> input_list = new ArrayList<>();
 		for(int i=0; i < chr_list.size(); i++) {
 			Chromosome chr = chr_list.get(i);
 			if (chr != null) {
@@ -322,8 +332,6 @@ public class SimulateModes {
 					Gene gene = chr.getGene(j);
 					ArrayList<Transcript> temp_list = new ArrayList<>();
 					temp_list.addAll(gene.getScripts());
-					temp_list.removeAll(bj_scripts);
-					temp_list.removeAll(peak_scripts);
 					if (temp_list.size() > this.scripts_gene) {
 						Method.getNoneRepeat(temp_list, this.scripts_gene, temp);
 					}
@@ -331,17 +339,18 @@ public class SimulateModes {
 						temp.addAll(temp_list);
 					}
 					for (Transcript the_script : temp) {
+						input_list.add(the_script);
 						PoissonDistribution p = new PoissonDistribution(read_depth);
 						PoissonDistribution p_ip = new PoissonDistribution(ip_scale * read_depth);
 						bf.getScriptReads(out, out_ip, null, null,the_script, p.sample(), p_ip.sample(), args.getRead_length(), false, false);
 					}
 					temp.clear();
+					fw.fileAppend(args.getOut_file(), out);
+					fw.fileAppend(ip_file, out_ip);
+					out.clear();
+					out_ip.clear();
 				}
 			}
-			fw.fileAppend(args.getOut_file(), out);
-			fw.fileAppend(ip_file, out_ip);
-			out.clear();
-			out_ip.clear();
 		}
 		int suc_bj = 0;
 		ArrayList<String> circ_out = new ArrayList<>();
@@ -404,6 +413,109 @@ public class SimulateModes {
 		fw.fileWrite(prefix + ".circ", circ_out);
 		fw.fileWrite(prefix + ".peak", peak_out);
 		return out;
+	}
+	
+	void mode5Possion(ReadInputs args, ArrayList<Chromosome> chr_list){
+		double read_depth = args.getDepth();
+		double ip_scale = args.getIp_scale();
+		double enrich = args.getEnrich();
+		this.bj_count = args.getCirc_num();
+		this.peak_count = args.getPeak_num();
+		ArrayList<ArrayList<Read>> out = new ArrayList<>();
+		ArrayList<ArrayList<Read>> out_ip = new ArrayList<>();
+		for(int i = 0; i < 25; i++) {
+			out.add(new ArrayList<>());
+			out_ip.add(new ArrayList<>());
+		}
+		BuildFasta bf = new BuildFasta();
+		FileWrite fw = new FileWrite();
+		String prefix = args.getOut_file().substring(0, args.getOut_file().lastIndexOf('.'));
+		String ip_file = prefix + "_IP.fastq";
+		PoissonDistribution p = new PoissonDistribution(read_depth);
+		PoissonDistribution p_ip = new PoissonDistribution(ip_scale * read_depth);
+		ArrayList<Transcript> choosed = new ArrayList<>();
+		ArrayList<Transcript> choosed_peak = new ArrayList<>();
+		for(int i=0; i < chr_list.size(); i++) {
+			Chromosome chr = chr_list.get(i);
+			if (chr != null) {
+				for (int j=0; j < chr.getGenes().size(); j++) {
+					Gene gene = chr.getGene(j);
+					ArrayList<Transcript> temp_list = new ArrayList<>();
+					HashSet<Transcript> temp = new HashSet<>();
+					temp_list.addAll(gene.getScripts());
+					if (temp_list.size() > this.scripts_gene) {
+						Method.getNoneRepeat(temp_list, this.scripts_gene, temp);
+					}
+					else {
+						temp.addAll(temp_list);
+					}
+					for (Transcript the_script : temp) {
+						if (the_script.getBase_sum() >= fragment_length) {
+							choosed.add(the_script);
+							if (the_script.getBase_sum() >= fragment_length * 2) {
+								choosed_peak.add(the_script);
+							}
+						}
+						else if (the_script.getBase_sum() > args.getRead_length()){
+							bf.getForwardReads(out.get(i), out_ip.get(i), the_script, p.sample(), p_ip.sample(), args.getRead_length());
+						}
+					}
+				}
+				fw.readsWrite(args, args.getOut_file(), out);
+				fw.readsWrite(args, ip_file, out_ip);
+			}
+		}
+		HashSet<Transcript> peak_scripts = this.getRand(choosed_peak, this.peak_count);
+		HashSet<Transcript> bj_scripts = this.getRand(choosed, this.bj_count);
+		for (Transcript script : bj_scripts) {
+			script.setCirc_flag(true);
+		}
+		choosed.removeAll(bj_scripts);
+		choosed.removeAll(peak_scripts);
+		
+		int suc_peak = 0;
+		int suc_bj = 0;
+		ArrayList<Bed12> peak = new ArrayList<>();
+		ArrayList<Bed12> circ = new ArrayList<>();
+		PoissonDistribution p_peak = new PoissonDistribution(enrich * ip_scale * read_depth);
+		for (Transcript the_script : bj_scripts) {
+			Bed12 record = bf.getCircReads(out.get(the_script.getChr()), out_ip.get(the_script.getChr()), the_script, p.sample(), p_ip.sample(), args.getRead_length());
+			if (record != null) {
+				suc_bj++;
+				circ.add(record);
+			}
+			if (peak_scripts.remove(the_script)) {
+				record = bf.getPeakReads(out.get(the_script.getChr()), out_ip.get(the_script.getChr()), the_script, p.sample(), p_peak.sample(), args.getRead_length(), true);
+				if (record != null) {
+					suc_peak++;
+					peak.add(record);
+				}
+			}
+		}
+		fw.readsAppend(args, args.getOut_file(), out);
+		fw.readsAppend(args, ip_file, out_ip);
+		fw.bedWrite(peak, prefix + ".circpeak");
+		fw.bedWrite(circ, prefix + ".circ");
+		circ = null;
+		peak.clear();
+		for (Transcript the_script : peak_scripts) {
+			Bed12 record = bf.getPeakReads(out.get(the_script.getChr()), out_ip.get(the_script.getChr()), the_script, p.sample(), p_peak.sample(), args.getRead_length(), true);
+			if (record != null) {
+				suc_peak++;
+				peak.add(record);
+			}
+		}
+		fw.readsAppend(args, args.getOut_file(), out);
+		fw.readsAppend(args, ip_file, out_ip);
+		fw.bedWrite(peak, prefix + ".peak");
+		peak = null;
+		for (int i = 0; i < choosed.size(); i++) {
+			bf.getForwardReads(out.get(choosed.get(i).getChr()), out_ip.get(choosed.get(i).getChr()), choosed.get(i), p.sample(), p_ip.sample(), args.getRead_length());
+		}
+		System.out.println("Circ succeed : " + suc_bj);
+		System.out.println("Peak succeed : " + suc_peak);
+		fw.readsAppend(args, args.getOut_file(), out);
+		fw.readsAppend(args, ip_file, out_ip);
 	}
 	
 	void writeFasta(String out_file, ArrayList<String> out) {
@@ -583,7 +695,12 @@ public class SimulateModes {
 			if (chr_list.get(i) != null) {
 				for (int j=0; j < chr_list.get(i).getGenes().size(); j++) {
 					Gene the_gene = chr_list.get(i).getGene(j);
-					temp.addAll(the_gene.getScripts());
+					for (int k=0; k < the_gene.getScripts().size(); k++) {
+						Transcript script = the_gene.getScript(k);
+						if (script.getBase_sum() >= 200) {
+							temp.add(script);
+						}
+					}
 				}
 			}
 		}
@@ -629,6 +746,18 @@ public class SimulateModes {
 			script.setBase_sum(length);
 			script.setExons(replace_list);
 			script.setCirc_flag(true);
+		}
+		return out;
+	}
+	
+	HashSet<Transcript> getRand(ArrayList<Transcript> script_list, int count){
+		HashSet<Transcript> out = new HashSet<>();
+		if (script_list.size() > count) {
+			Method.getNoneRepeat(script_list, count, out);
+		}
+		else {
+			out.addAll(script_list);
+			System.out.println("Warning: Not enough elements for picking");
 		}
 		return out;
 	}

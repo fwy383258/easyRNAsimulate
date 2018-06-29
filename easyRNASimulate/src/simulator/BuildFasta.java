@@ -1,9 +1,12 @@
 package simulator;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 public class BuildFasta {
+	
+	private int fragment_length = 200;
 	
 	boolean getScriptReads(ArrayList<String> out, ArrayList<String> out_ip, ArrayList<String> circ_report, ArrayList<String> peak_report, Transcript script, int count, int count_ip, int length, boolean circ_flag, boolean peak_flag) {
 		StringBuffer id = new StringBuffer();
@@ -221,6 +224,421 @@ public class BuildFasta {
 //			count_ip--;
 //		}
 		return true;
+	}
+	
+	public void getForwardReads(ArrayList<Read> out, ArrayList<Read> out_ip, Transcript script, int count, int count_ip, int length) {
+		int start_index = 0;
+		int end_index = script.getBase_sum() - length;
+		for (int i = 0; i < count; i++) {
+			int pos = Method.randIntReach(start_index, end_index);
+			Read the_read = new Read();
+			for (int j = 0; j < script.getExons().size(); j++) {
+				Exon exon = script.getExon(j);
+				int l = exon.getEnd() - exon.getStart() + 1;
+				if (pos < l) {
+					int left_length = length - l + pos;
+					the_read.getPositions().add(exon.getStart() + pos);
+					while (left_length > 0) {
+						the_read.getPositions().add(exon.getEnd());
+						j++;
+						exon = script.getExon(j);
+						the_read.getPositions().add(exon.getStart());
+						left_length -= exon.getEnd() - exon.getStart() + 1;
+					}
+					the_read.getPositions().add(left_length + exon.getEnd());
+					break;
+				}
+				else {
+					pos -= l;
+				}
+			}
+			the_read.setId(script.getId());
+			out.add(the_read);
+		}
+		
+		for (int i = 0; i < count_ip; i++) {
+			int pos = Method.randIntReach(start_index, end_index);
+			Read the_read = new Read();
+			for (int j = 0; j < script.getExons().size(); j++) {
+				Exon exon = script.getExon(j);
+				int l = exon.getEnd() - exon.getStart() + 1;
+				if (pos < l) {
+					int left_length = length - l + pos;
+					the_read.getPositions().add(exon.getStart() + pos);
+					while (left_length > 0) {
+						the_read.getPositions().add(exon.getEnd());
+						j++;
+						exon = script.getExon(j);
+						the_read.getPositions().add(exon.getStart());
+						left_length -= exon.getEnd() - exon.getStart() + 1;
+					}
+					the_read.getPositions().add(left_length + exon.getEnd());
+					break;
+				}
+				else {
+					pos -= l;
+				}
+			}
+			the_read.setId(script.getId());
+			out_ip.add(the_read);
+		}
+	}
+	
+	public Bed12 getCircReads(ArrayList<Read> out, ArrayList<Read> out_ip, Transcript script, int count, int count_ip, int length) {
+		if (script.isCirc_flag()) {
+			boolean intro_flag = false;
+			int start_index = 0;
+			int end_index = 0;
+			start_index = Method.randIntReach(0, script.getExons().size() - 1);
+			end_index = Method.randIntReach(0, script.getExons().size() - 1);
+			if (start_index == end_index) {
+				Exon exon = script.getExon(start_index);
+				if (exon.getEnd() - exon.getStart() >= 199) {
+					script.getExons().clear();
+					script.addExon(exon);
+					script.setBase_sum(exon.getEnd() - exon.getStart() + 1);
+				}
+				else {
+					int rand = Method.randIntReach(0, script.getExons().size() - 2);
+					if (rand >= start_index) {
+						end_index = rand + 1;
+						
+					}
+					else {
+						start_index = rand;
+					}
+				}
+			}
+			else if (start_index > end_index){
+				start_index ^= end_index;
+				end_index ^= start_index;
+				start_index ^= end_index;
+			}
+			
+			if (start_index < end_index) {
+				ArrayList<Exon> exons = new ArrayList<>();
+				int base_sum = 0;
+				int last_index = start_index;
+				exons.add(script.getExon(end_index));
+				base_sum += script.getExon(end_index).getEnd() - script.getExon(end_index).getStart() + 1;
+				exons.add(script.getExon(start_index));
+				base_sum += script.getExon(start_index).getEnd() - script.getExon(start_index).getStart() + 1;
+				for (int i = start_index + 1; i < end_index; i++) {
+					if (Math.random() < 0.5) {
+						exons.add(script.getExon(i));
+						base_sum += script.getExon(i).getEnd() - script.getExon(i).getStart() + 1;
+						last_index = i;
+					}
+				}
+				if (last_index == end_index - 1) {
+					if (base_sum < 200 || Math.random() < 0.5) {
+						base_sum += script.getExon(end_index).getStart() - script.getExon(last_index).getEnd() - 1;
+						script.getExon(last_index).setEnd(script.getExon(end_index).getStart() - 1);
+						intro_flag = true;
+					}
+				}
+				script.setExons(exons);
+				script.setBase_sum(base_sum);
+			}
+			
+			start_index = 0;
+			end_index = script.getBase_sum() - 1;
+			for (int i = 0; i < count; i++) {
+				int pos = Method.randIntReach(start_index, end_index);
+				Read the_read = new Read();
+				for (int j = 0; ; j++) {
+					Exon exon = script.getExon(j);
+					int l = exon.getEnd() - exon.getStart() + 1;
+					if (pos < l) {
+						int left_length = length - l + pos;
+						the_read.getPositions().add(exon.getStart() + pos);
+						while (left_length > 0) {
+							j++;
+							j %= script.getExons().size();
+							if (exon.getEnd() + 1 == script.getExon(j).getStart()) {
+								exon = script.getExon(j);
+							}
+							else {
+								the_read.getPositions().add(exon.getEnd());
+								exon = script.getExon(j);
+								the_read.getPositions().add(exon.getStart());
+							}
+							left_length -= exon.getEnd() - exon.getStart() + 1;
+						}
+						the_read.getPositions().add(left_length + exon.getEnd());
+						break;
+					}
+					else {
+						pos -= l;
+					}
+				}
+				the_read.setId(script.getId());
+				the_read.setCirc_flag(true);
+				out.add(the_read);
+			}
+			
+			for (int i = 0; i < count_ip; i++) {
+				int pos = Method.randIntReach(start_index, end_index);
+				Read the_read = new Read();
+				for (int j = 0; ; j++) {
+					Exon exon = script.getExon(j);
+					int l = exon.getEnd() - exon.getStart() + 1;
+					if (pos < l) {
+						int left_length = length - l + pos;
+						the_read.getPositions().add(exon.getStart() + pos);
+						while (left_length > 0) {
+							j++;
+							j %= script.getExons().size();
+							if (exon.getEnd() + 1 == script.getExon(j).getStart()) {
+								exon = script.getExon(j);
+							}
+							else {
+								the_read.getPositions().add(exon.getEnd());
+								exon = script.getExon(j);
+								the_read.getPositions().add(exon.getStart());
+							}
+							left_length -= exon.getEnd() - exon.getStart() + 1;
+						}
+						the_read.getPositions().add(left_length + exon.getEnd());
+						break;
+					}
+					else {
+						pos -= l;
+					}
+				}
+				the_read.setId(script.getId());
+				the_read.setCirc_flag(true);
+				out_ip.add(the_read);
+			}
+			
+			
+			Bed12 record = new Bed12();
+			record.setName(script.getId());
+			record.setChr(script.getExon(0).getChr_symbol());
+			record.setStrand(script.getStrand());
+			if (script.getExons().size() > 1) {
+				record.setStart(script.getExon(1).getStart());
+			}
+			else {
+				record.setStart(script.getExon(0).getStart());
+			}
+			record.setEnd(script.getExon(0).getEnd());
+			record.setBlock_count(script.getExons().size());
+			record.setThick_start(record.getStart());
+			record.setThick_end(record.getEnd());
+			for (int i = 1; i < script.getExons().size(); i++) {
+				Exon exon = script.getExon(i);
+				record.getBlock_sizes().add(exon.getEnd() - exon.getStart() + 1);
+				record.getBlock_starts().add(exon.getStart() - record.getStart());
+			}
+			if (!intro_flag) {
+				record.getBlock_sizes().add(script.getExon(0).getEnd() - script.getExon(0).getStart() + 1);
+				record.getBlock_starts().add(script.getExon(0).getStart() - record.getStart());
+			}
+			else {
+				record.getBlock_sizes().set(record.getBlock_sizes().size() - 1, script.getExon(0).getEnd() - script.getExon(script.getExons().size() -1).getStart() + 1);
+				record.setBlock_count(record.getBlock_count() - 1);
+			}
+			return record;
+		}
+		else {
+			System.out.println("Failed to add circ in " + script.getId());
+			return null;
+		}
+	}
+	
+	public Bed12 getPeakReads(ArrayList<Read> out, ArrayList<Read> out_ip, Transcript script, int count,  int count_ip, int length, boolean circ_peak) {
+		int start_index = 0;
+		int end_index = 0;
+		if (script.isCirc_flag()) {
+			end_index = script.getBase_sum() - 1;
+			if (circ_peak) {
+				start_index = script.getExon(0).getEnd() - script.getExon(0).getStart() - fragment_length;
+			}
+			else {
+				start_index = Method.randIntReach(start_index, end_index);
+			}
+			end_index = start_index + fragment_length;
+			for (int i = 0; i < count; i++) {
+				int pos = Method.randIntReach(start_index, end_index);
+				if (pos < 0) {
+					pos += script.getBase_sum();
+				}
+				Read the_read = new Read();
+				for (int j = 0; ; j++) {
+					j %= script.getExons().size();
+					Exon exon = script.getExon(j);
+					int l = exon.getEnd() - exon.getStart() + 1;
+					if (pos < l) {
+						int left_length = length - l + pos;
+						the_read.getPositions().add(exon.getStart() + pos);
+						while (left_length > 0) {
+							j++;
+							j %= script.getExons().size();
+							if (exon.getEnd() + 1 == script.getExon(j).getStart()) {
+								exon = script.getExon(j);
+							}
+							else {
+								the_read.getPositions().add(exon.getEnd());
+								exon = script.getExon(j);
+								the_read.getPositions().add(exon.getStart());
+							}
+							left_length -= exon.getEnd() - exon.getStart() + 1;
+						}
+						the_read.getPositions().add(left_length + exon.getEnd());
+						break;
+					}
+					else {
+						pos -= l;
+					}
+				}
+				the_read.setId(script.getId());
+				the_read.setCirc_flag(true);
+				the_read.setPeak_flag(true);
+				out.add(the_read);
+			}
+			for (int i = 0; i < count_ip; i++) {
+				int pos = Method.randIntReach(start_index, end_index);
+				if (pos < 0) {
+					pos += length;
+				}
+				Read the_read = new Read();
+				for (int j = 0; ; j++) {
+					j %= script.getExons().size();
+					Exon exon = script.getExon(j);
+					int l = exon.getEnd() - exon.getStart() + 1;
+					if (pos < l) {
+						int left_length = length - l + pos;
+						the_read.getPositions().add(exon.getStart() + pos);
+						while (left_length > 0) {
+							j++;
+							j %= script.getExons().size();
+							if (exon.getEnd() + 1 == script.getExon(j).getStart()) {
+								exon = script.getExon(j);
+							}
+							else {
+								the_read.getPositions().add(exon.getEnd());
+								exon = script.getExon(j);
+								the_read.getPositions().add(exon.getStart());
+							}
+							left_length -= exon.getEnd() - exon.getStart() + 1;
+						}
+						the_read.getPositions().add(left_length + exon.getEnd());
+						break;
+					}
+					else {
+						pos -= l;
+					}
+				}
+				the_read.setId(script.getId());
+				the_read.setCirc_flag(true);
+				the_read.setPeak_flag(true);
+				out_ip.add(the_read);
+			}
+		}
+		else {
+			end_index = script.getBase_sum() - fragment_length * 2 - 1;
+			start_index = Method.randIntReach(start_index, end_index);
+			end_index = start_index + fragment_length;
+			for (int i = 0; i < count; i++) {
+				int pos = Method.randIntReach(start_index, end_index);
+				Read the_read = new Read();
+				for (int j = 0; j < script.getExons().size(); j++) {
+					Exon exon = script.getExon(j);
+					int l = exon.getEnd() - exon.getStart() + 1;
+					if (pos < l) {
+						int left_length = length - l + pos;
+						the_read.getPositions().add(exon.getStart() + pos);
+						while (left_length > 0) {
+							the_read.getPositions().add(exon.getEnd());
+							j++;
+							exon = script.getExon(j);
+							the_read.getPositions().add(exon.getStart());
+							left_length -= exon.getEnd() - exon.getStart() + 1;
+						}
+						the_read.getPositions().add(left_length + exon.getEnd());
+						break;
+					}
+					else {
+						pos -= l;
+					}
+				}
+				the_read.setId(script.getId());
+				the_read.setPeak_flag(true);
+				out.add(the_read);
+			}
+			for (int i = 0; i < count_ip; i++) {
+				int pos = Method.randIntReach(start_index, end_index);
+				Read the_read = new Read();
+				for (int j = 0; j < script.getExons().size(); j++) {
+					Exon exon = script.getExon(j);
+					int l = exon.getEnd() - exon.getStart() + 1;
+					if (pos < l) {
+						int left_length = length - l + pos;
+						the_read.getPositions().add(exon.getStart() + pos);
+						while (left_length > 0) {
+							the_read.getPositions().add(exon.getEnd());
+							j++;
+							exon = script.getExon(j);
+							the_read.getPositions().add(exon.getStart());
+							left_length -= exon.getEnd() - exon.getStart() + 1;
+						}
+						the_read.getPositions().add(left_length + exon.getEnd());
+						break;
+					}
+					else {
+						pos -= l;
+					}
+				}
+				the_read.setId(script.getId());
+				the_read.setPeak_flag(true);
+				out_ip.add(the_read);
+			}
+		}
+		
+		ArrayList<Integer> pos = new ArrayList<>();
+		for (int i = 0; ; i++) {
+			i %= script.getExons().size();
+			Exon exon = script.getExon(i);
+			int l = exon.getEnd() - exon.getStart() + 1;
+			if (start_index < l) {
+				int left_length = length * 2 - l + start_index;
+				pos.add(exon.getStart() + start_index);
+				while (left_length > 0) {
+					i++;
+					i %= script.getExons().size();
+					if (exon.getEnd() + 1 == script.getExon(i).getStart()) {
+						exon = script.getExon(i);
+					}
+					else {
+						pos.add(exon.getEnd());
+						exon = script.getExon(i);
+						pos.add(exon.getStart());
+					}
+					left_length -= exon.getEnd() - exon.getStart() + 1;
+				}
+				pos.add(left_length + exon.getEnd());
+				break;
+			}
+			else {
+				start_index -= l;
+			}
+		}
+		Collections.sort(pos);
+		Bed12 report = new Bed12();
+		report.setBlock_count(pos.size() / 2);
+		report.setChr(script.getExon(0).getChr_symbol());
+		report.setEnd(pos.get(pos.size() - 1));
+		report.setName(script.getId());
+		report.setStart(pos.get(0));
+		report.setStrand(script.getStrand());
+		report.setThick_end(report.getEnd());
+		report.setThick_start(report.getStart());
+		for (int i = 0; i < pos.size(); i += 2) {
+			report.getBlock_starts().add(pos.get(i) - report.getStart());
+			report.getBlock_sizes().add(pos.get(i + 1) - pos.get(i));
+		}
+		return report;
 	}
 	
 	private void getScriptReads(ArrayList<String> out, Transcript script, int count, StringBuffer id, int id_fix, StringBuffer base_seq, int start_index, int end_index, int length) {
